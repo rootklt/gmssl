@@ -48,7 +48,7 @@ class GenSM2KEY(object):
         xPublicKey, yPublicKey = utils.multiply(
             (curve['Gx'], curve['Gy']), self.secret, A=curve['A'], P=curve['P'], N=curve['N'])
         # type: ignore
-        return {True: f'\x04{xPublicKey:x}'.encode(), False: f"\x04{xPublicKey:064x}{yPublicKey:064x}".encode()}.get(self.compressed)
+        return {True: f'04{xPublicKey:x}'.encode(), False: f"04{xPublicKey:064x}{yPublicKey:064x}".encode()}.get(self.compressed) #type: ignore
 
     def gen_key_pair(self, secret=None) -> tuple:
         '''

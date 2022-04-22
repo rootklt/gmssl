@@ -142,7 +142,7 @@ class CryptSM4(object):
         #SM4-CBC buffer encryption/decryption
         i = 0
         output_data = []
-        iv = list(iv)
+        iv = list(iv)  # type: ignore
         if self.mode == SM4_DECRYPT:
             length = len(input_data)
             while length > 0:

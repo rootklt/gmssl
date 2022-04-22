@@ -1,6 +1,6 @@
 import binascii
 from math import ceil
-from .utils import rotl, bytes_to_list
+from .utils import rotl
 
 IV = [
     1937774191, 1226093241, 388252375, 3666478592,
@@ -22,6 +22,7 @@ T_j = [
 ]
 
 def sm3_ff_j(x, y, z, j):
+    ret = 0
     if 0 <= j < 16:
         ret = x ^ y ^ z
     elif 16 <= j < 64:
@@ -29,6 +30,7 @@ def sm3_ff_j(x, y, z, j):
     return ret
 
 def sm3_gg_j(x, y, z, j):
+    ret = 0
     if 0 <= j < 16:
         ret = x ^ y ^ z
     elif 16 <= j < 64:
@@ -47,7 +49,7 @@ def sm3_cf(v_i, b_i):
     for i in range(16):
         weight = 0x1000000
         data = 0
-        for k in range(i*4,(i+1)*4):
+        for k in range(i * 4,(i + 1) * 4):
             data = data + b_i[k]*weight
             weight = int(weight/0x100)
         w.append(data)
@@ -88,49 +90,47 @@ def sm3_cf(v_i, b_i):
     v_j = [a, b, c, d, e, f, g, h]
     return [v_j[i] ^ v_i[i] for i in range(8)]
 
-def sm3_hash(msg : bytes) -> bytes:
-    # print(msg)
+def sm3_hash(msg) -> bytes:
+    '''
+    计算消息摘要
+    :param msg bytes 消息
+    :returns bytes  返回sm3哈希值，hex格式。
+    '''
     len1 = len(msg)
     reserve1 = len1 % 64
-    msg += b'\x80'
     reserve1 = reserve1 + 1
+
     # 56-64, add 64 byte
     range_end = 56
     if reserve1 > range_end:
         range_end += 64
 
-    for _ in range(reserve1, range_end):
-        msg += b'\x00'
-
+    msg += b'\x80' + b'\x00' * (range_end - reserve1)
     bit_length = (len1) * 8
     bit_length_str = [bit_length % 0x100]
-
     for _ in range(7):
         bit_length = int(bit_length / 0x100)
         bit_length_str.append(bit_length % 0x100)
-    msg += bytes(bit_length_str[7-i] for i in range(8))
+    for i in range(8):
+        msg += chr(bit_length_str[7-i]).encode()
 
     group_count = round(len(msg) / 64)
 
-    B = [list(msg)[i*64:(i+1)*64] for i in range(group_count)]
+    B = [msg[i*64:(i+1)*64] for i in range(group_count)]
     V = [IV]
-    i = 0
-    V.extend(sm3_cf(V[i], B[i]) for i in range(group_count))
-    result = ''
+    for i in range(group_count):
+        V.append(sm3_cf(V[i], B[i]))
+    result = ""
     for i in V[i+1]:
         result = f'{result}{i:08x}'
     return result.encode()
 
-def sm3_kdf(z:bytes, klen:int)->bytes: 
-    '''
-    z为16进制表示的比特串（str），klen为密钥长度（单位byte）
-    '''
-    klen = int(klen)
+def sm3_kdf(z:bytes, klen:int) ->bytes: # z为16进制表示的比特串（str），klen为密钥长度（单位byte）
+    #klen = int(klen)
     rcnt = ceil(klen/32)
-    zin = z
-    ha = b''
+    zin = list(binascii.unhexlify(z))
+    ha = b""
     for ct, _ in enumerate(range(rcnt), start=1):
-        msg = zin + binascii.unhexlify((f'{ct:08x}').encode())
-        ha += sm3_hash(msg)
+        msg = zin + list(binascii.a2b_hex(('%08x' % ct).encode('utf8')))
+        ha = ha + sm3_hash(bytes(msg))
     return ha[:klen * 2]
-

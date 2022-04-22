@@ -90,6 +90,6 @@ list_to_bytes = lambda data: b''.join([bytes((i,)) for i in data])
 
 bytes_to_list = lambda data: list(data)
 
-random_hex = lambda x: ''.join([choice('0123456789abcdef') for _ in range(x)]).encode()
+random_hex = lambda x: ''.join([choice('0123456789abcdef') for _ in range(x)])
 
 int_from_bytes = lambda data, order = 'big': int.from_bytes(unhexlify(data), order)

@@ -1,14 +1,16 @@
 GMSSL
 ========
+
 GmSSL是一个开源的加密包的python实现，支持SM2/SM3/SM4等国密(国家商用密码)算法、项目采用对商业应用友好的类BSD开源许可证，开源且可以用于闭源的商业应用。
-本次是在https://github.com/duanhongyi/gmssl上进行的修改，需要原版的请到作者github上clone。本次修改增加了生成SM2密钥的功能。
+本次是在<https://github.com/duanhongyi/gmssl>上进行的修改，需要原版的请到作者github上clone。本次修改增加了生成SM2密钥的功能。
 
 ### 安装
 
 ```shell
 pip install gmssl   #原版安装
 或
-git clone <url>
+git clone git@github.com:rootklt/gmssl.git
+cd gmssl
 python3 setup.py install
 ```
 
@@ -50,6 +52,7 @@ assert dec_data == data
 ```
 
 #### 3. `sign`和`verify`
+
 ```python
 data = b"111" # bytes类型
 random_hex_str = func.random_hex(sm2_crypt.para_len)
@@ -79,7 +82,6 @@ private_key = b'd242a7ec7e3bea0f5c6b2df34705701658638cdc625b1903d7edacddb213359e
 public_key = b'3e206c2c45596028c509f1941259dfb8d3060ae26284f67b8400bfd623e17637'
 
 ```
-
 
 ### SM4算法
 

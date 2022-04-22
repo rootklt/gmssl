@@ -1,5 +1,5 @@
-from gmssl import sm3, func
+from gmssl import sm3
 
 if __name__ == '__main__':
-    y = sm3.sm3_hash(func.bytes_to_list(b"abc"))
+    y = sm3.sm3_hash(b"abc")
     print(y)

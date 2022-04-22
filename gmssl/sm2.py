@@ -47,7 +47,7 @@ class GenSM2KEY(object):
         curve = self.curve
         xPublicKey, yPublicKey = utils.multiply(
             (curve['Gx'], curve['Gy']), self.secret, A=curve['A'], P=curve['P'], N=curve['N'])
-        return {True: f'{xPublicKey:x}'.encode(), False: f"{xPublicKey:064x}{yPublicKey:064x}".encode()}.get(self.compressed)
+        return {True: f'{xPublicKey:x}'.encode(), False: f"{xPublicKey:064x}{yPublicKey:064x}".encode()}.get(self.compressed)  # type: ignore
 
     def gen_key_pair(self, secret=None) -> tuple:
         '''
@@ -158,7 +158,7 @@ class CryptSM2(GenSM2KEY):
         l2 = len(P2)
 
         if (l1 < len_2) or (l2 < len_2):
-            return None
+            return None #type: ignore
 
         X1 = int(P1[:self.para_len], 16)
         Y1 = int(P1[self.para_len:len_2], 16)
@@ -247,7 +247,7 @@ class CryptSM2(GenSM2KEY):
         x = int(P1[:self.para_len], 16)
         R = (e + x) % self.ecc_table['n']
         if R == 0 or R + k == self.ecc_table['n']:
-            return None
+            return None #type: ignore
         d_1 = pow(d+1, self.ecc_table['n'] - 2, self.ecc_table['n'])
         S = (d_1*(k + R) - R) % self.ecc_table['n']
         return b'' if S == 0 else f'{R:064x}{S:064x}'.encode()
@@ -255,7 +255,7 @@ class CryptSM2(GenSM2KEY):
     def encrypt(self, plaintext: bytes) -> bytes:
         # 加密函数，data消息(bytes)
 
-        plaintext = plaintext.hex()  # 将明文转成16进制，并计算长度
+        plaintext = plaintext.hex().encode()  # 将明文转成16进制，并计算长度
         ml = len(plaintext)
 
         k = utils.random_hex(self.para_len)  # 获取随机的16进制字符串
@@ -267,7 +267,7 @@ class CryptSM2(GenSM2KEY):
         x2 = xy[: self.para_len].decode()
         y2 = xy[self.para_len: 2*self.para_len].decode()
 
-        t = sm3.sm3_kdf(xy, ml/2)
+        t = sm3.sm3_kdf(xy, ml/2) #type: ignore
 
         if int(t, 16) == 0:
             return b''
@@ -298,9 +298,9 @@ class CryptSM2(GenSM2KEY):
         y2 = xy[self.para_len:len_2]
         cl = len(C2)
 
-        t = sm3.sm3_kdf(xy, cl/2)
+        t = sm3.sm3_kdf(xy, cl/2)  # type: ignore
         if int(t, 16) == 0:
-            return None
+            return None #type: ignore
         form = f'{{:0{cl}x}}'
         M = form.format(int(C2, 16) ^ int(t, 16))
         u = sm3.sm3_hash(x2 + M.encode() + y2)

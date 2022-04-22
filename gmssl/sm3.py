@@ -121,13 +121,12 @@ def sm3_hash(msg : bytes) -> bytes:
         result = f'{result}{i:08x}'
     return result.encode()
 
-def sm3_kdf(z:bytes, klen:int) -> bytes:
+def sm3_kdf(z:bytes, klen:int)->bytes: 
     '''
     z为16进制表示的比特串（str），klen为密钥长度（单位byte）
     '''
-    klen = klen
+    klen = int(klen)
     rcnt = ceil(klen/32)
-    #zin = list(bytes.fromhex(z.decode('utf8')))
     zin = z
     ha = b''
     for ct, _ in enumerate(range(rcnt), start=1):

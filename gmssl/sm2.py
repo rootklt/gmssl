@@ -33,7 +33,7 @@ class GenSM2KEY(object):
         }
         self.compressed = False
 
-    def set_compressed(self, compressed:bool = False):
+    def set_compressed(self, compressed: bool = False):
         self.compressed = compressed
 
     def privateKey(self, secret=None) -> bytes:
@@ -47,7 +47,8 @@ class GenSM2KEY(object):
         curve = self.curve
         xPublicKey, yPublicKey = utils.multiply(
             (curve['Gx'], curve['Gy']), self.secret, A=curve['A'], P=curve['P'], N=curve['N'])
-        return {True: f'{xPublicKey:x}'.encode(), False: f"{xPublicKey:064x}{yPublicKey:064x}".encode()}.get(self.compressed)  # type: ignore
+        # type: ignore
+        return {True: f'\x04{xPublicKey:x}'.encode(), False: f"\x04{xPublicKey:064x}{yPublicKey:064x}".encode()}.get(self.compressed)
 
     def gen_key_pair(self, secret=None) -> tuple:
         '''
@@ -86,7 +87,7 @@ class CryptSM2(GenSM2KEY):
         self.private_key = self._check_key(private_key)
         self.public_key = self._check_key(public_key)
 
-    def _kg(self, k: int, Point:bytes) ->bytes:
+    def _kg(self, k: int, Point: bytes) -> bytes:
         '''
         kP运算
         '''
@@ -108,14 +109,14 @@ class CryptSM2(GenSM2KEY):
             k = k << 1
         return self._convert_jacb_to_nor(Temp)  # type: ignore
 
-    def _double_point(self, Point:bytes): 
+    def _double_point(self, Point: bytes):
         '''
         倍点
         '''
         l = len(Point)
         len_2 = 2 * self.para_len
         if l < len_2:
-            return #type: ignore
+            return  # type: ignore
 
         x1 = int(Point[:self.para_len], 16)
         y1 = int(Point[self.para_len:len_2], 16)
@@ -151,7 +152,7 @@ class CryptSM2(GenSM2KEY):
 
         return form.format(x3, y3, z3).encode()
 
-    def _add_point(self, P1:bytes, P2:bytes):
+    def _add_point(self, P1: bytes, P2: bytes):
         '''
         点加函数,P2点为仿射坐标即z=1,P1为Jacobian加重射影坐标
         '''
@@ -160,7 +161,7 @@ class CryptSM2(GenSM2KEY):
         l2 = len(P2)
 
         if (l1 < len_2) or (l2 < len_2):
-            return #type: ignore
+            return  # type: ignore
 
         X1 = int(P1[:self.para_len], 16)
         Y1 = int(P1[self.para_len:len_2], 16)
@@ -191,7 +192,7 @@ class CryptSM2(GenSM2KEY):
         form = f'{{:0{self.para_len}x}}'*3
         return form.format(X3, Y3, Z3).encode()
 
-    def _convert_jacb_to_nor(self, Point:bytes):
+    def _convert_jacb_to_nor(self, Point: bytes):
         '''
         Jacobian加重射影坐标转换成仿射坐标
         '''
@@ -211,7 +212,7 @@ class CryptSM2(GenSM2KEY):
         z_new = (z * z_inv) % self.ecc_table['p']
 
         if z_new != 1:
-            return #type: ignore
+            return  # type: ignore
         form = f'{{:0{self.para_len}x}}'*2
         return form.format(x_new, y_new).encode()
 
@@ -239,7 +240,7 @@ class CryptSM2(GenSM2KEY):
             P1 = self._add_point(P1, P2)
             P1 = self._convert_jacb_to_nor(P1)
 
-        x = int(P1[:self.para_len], 16) #type: ignore
+        x = int(P1[:self.para_len], 16)  # type: ignore
         return r == (e + x) % self.ecc_table['n']
 
     def sign(self, data: bytes, K: bytes) -> bytes:
@@ -256,15 +257,15 @@ class CryptSM2(GenSM2KEY):
         x = int(P1[:self.para_len], 16)
         R = (e + x) % self.ecc_table['n']
         if R == 0 or R + k == self.ecc_table['n']:
-            return #type: ignore
+            return  # type: ignore
         d_1 = pow(d+1, self.ecc_table['n'] - 2, self.ecc_table['n'])
         S = (d_1*(k + R) - R) % self.ecc_table['n']
         if S == 0:
-            return #type: ignore
+            return  # type: ignore
 
         return f'{R:064x}{S:064x}'.encode()
 
-    def encrypt(self, plaintext:bytes) -> bytes:
+    def encrypt(self, plaintext: bytes) -> bytes:
         '''
         加密函数，data消息(bytes)
         :params plaintext bytes 明文
@@ -285,12 +286,12 @@ class CryptSM2(GenSM2KEY):
         t = sm3.sm3_kdf(xy, ml//2)
 
         if int(t, 16) == 0:
-            return #type: ignore
+            return  # type: ignore
         form = f'{{:0{ml}x}}'
         C2 = form.format(int(msg, 16) ^ int(t, 16))
         C3 = sm3.sm3_hash(unhexlify(f'{x2}{msg}{y2}')).decode()
-        
-        return unhexlify(f'{C1:s}{C3:s}{C2:s}') if self.mode else unhexlify(f'{C1:s}{C2:s}{C3:s}')
+
+        return unhexlify(f'\x04{C1:s}{C3:s}{C2:s}') if self.mode else unhexlify(f'\x04{C1:s}{C2:s}{C3:s}')
 
     def decrypt(self, cipher: bytes) -> bytes:
         '''
@@ -298,6 +299,8 @@ class CryptSM2(GenSM2KEY):
         :params cipher bytes 密文
         :returns bytes 原始明文
         '''
+        if cipher.startswith(b'\x04'):
+            cipher = cipher[1:]
         cipher = cipher.hex().encode()
         len_2 = 2 * self.para_len
         len_3 = len_2 + 64
@@ -319,14 +322,14 @@ class CryptSM2(GenSM2KEY):
 
         t = sm3.sm3_kdf(xy, cl//2)
         if int(t, 16) == 0:
-            return None #type: ignore
+            return None  # type: ignore
         form = f'{{:0{cl}x}}'
         M = form.format(int(C2, 16) ^ int(t, 16))
         u = sm3.sm3_hash(unhexlify(f'{x2.decode():s}{M:s}{y2.decode():s}'))
         assert C3 == u, '数据完整性受破坏。'
         return unhexlify(M)
 
-    def _sm3_z(self, data:bytes):
+    def _sm3_z(self, data: bytes):
         """
         SM3WITHSM2 签名规则:  SM2.sign(SM3(Z+MSG)，PrivateKey)
         其中: z = Hash256(Len(ID) + ID + a + b + xG + yG + xA + yA)
@@ -335,7 +338,8 @@ class CryptSM2(GenSM2KEY):
         B = self.ecc_table['b']
         G = self.ecc_table['g']
         # sm3withsm2 的 z 值
-        z = unhexlify(b'0080'+b'31323334353637383132333435363738' + f"{A:x}{B:x}{G:x}".encode() + self.public_key)
+        z = unhexlify(b'0080'+b'31323334353637383132333435363738' +
+                      f"{A:x}{B:x}{G:x}".encode() + self.public_key)
 
         Za = sm3.sm3_hash(z).decode()
         M_ = (Za + data.hex()).encode('utf-8')

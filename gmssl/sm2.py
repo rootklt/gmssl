@@ -291,7 +291,7 @@ class CryptSM2(GenSM2KEY):
         C2 = form.format(int(msg, 16) ^ int(t, 16))
         C3 = sm3.sm3_hash(unhexlify(f'{x2}{msg}{y2}')).decode()
 
-        return unhexlify(f'\x04{C1:s}{C3:s}{C2:s}') if self.mode else unhexlify(f'\x04{C1:s}{C2:s}{C3:s}')
+        return unhexlify(f'04{C1:s}{C3:s}{C2:s}') if self.mode else unhexlify(f'04{C1:s}{C2:s}{C3:s}')
 
     def decrypt(self, cipher: bytes) -> bytes:
         '''

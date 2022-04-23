@@ -316,8 +316,8 @@ class CryptSM2(GenSM2KEY):
 
         xy = self._kg(int(self.private_key, 16), C1)
         # print('xy = %s' % xy)
-        x2 = xy[:self.para_len]
-        y2 = xy[self.para_len:len_2]
+        x2 = xy[:self.para_len].decode()
+        y2 = xy[self.para_len:len_2].decode()
         cl = len(C2)
 
         t = sm3.sm3_kdf(xy, cl//2)
@@ -325,7 +325,7 @@ class CryptSM2(GenSM2KEY):
             return None  # type: ignore
         form = f'{{:0{cl}x}}'
         M = form.format(int(C2, 16) ^ int(t, 16))
-        u = sm3.sm3_hash(unhexlify(f'{x2.decode():s}{M:s}{y2.decode():s}'))
+        u = sm3.sm3_hash(unhexlify(f'{x2:s}{M:s}{y2:s}'))
         assert C3 == u, '数据完整性受破坏。'
         return unhexlify(M)
 

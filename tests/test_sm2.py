@@ -1,32 +1,34 @@
 import base64
 import binascii
-from gmssl import sm2, utils
+from gmssl import sm2
+from gmssl import utils
 
 
 def test_sm2():
     private_key = b'00B9AB0B828FF68872F21A837FC303668428DEA11DCD1B24429D0C99E24EED83D5'
     public_key = b'B9C9A6E04E9C91F7BA880429273747D7EF5DDEB0BB2FF6317EB00BEF331A83081A6994B8993F3F5D6EADDDB81872266C87C018FB4162F5AF347B483E24620207'
-    private_key = b'54232d8aaa3209ee123e07c34314e50e29fbb941496f92e219eb62c5bd40d968'
-    public_key = b'4a77c33fa976ddab1d8e2ad05694f01151ed39892832947fbcb4a89199db72bc5db91b29616009f0b504459ad72f97b078cf35aebd32b6066003dd81db9a3244'
-    c = b'04193e23bd85dcaae13f0a7d2abf90459710942f98f9813536019d282ed5466c81efed9573da77bf69c1c3c9e3eaff0316abe3581fab08f1897b969fe1d0dd520e7797ffaa2005daa993d9b94171137970e25bf7b5c84b7e39d3a2fd95cecdac780ea3c706a64315e6b06e8f'
-    sm2_crypt = sm2.CryptSM2()
-    sm2_crypt.set_key_pair(private_key,public_key)
-    # data = b"hello world"
-    # enc_data = sm2_crypt.encrypt(data)
-    # print(enc_data.hex())
+    sm2_crypt = sm2.CryptSM2(mode = 0)
+    #private_key, public_key = sm2_crypt.gen_key_pair()
+    sm2_crypt.set_key_pair(private_key, public_key)
 
-    #c = base64.b64decode(b'BG496rRMMyLQA2XaMK0zRnq9En0WRLR8fI8cZ/s6RVyVx6LjgGi6Hs7yxDDixbgqtDaVTmDwUK+SGu+CtQPYGH0iS6Gc7rIgBqKFxSatXeLLhDdTbLZPUKDODgWAfpS4jZX9BsP20O0kcVk=')
-    dec_data = sm2_crypt.decrypt(binascii.unhexlify(c))
-    print(b"dec_data:%s" % dec_data)
-    #assert data == dec_data
+    mm = "a好"*800
+    enc_data = sm2_crypt.encrypt(mm.encode())
 
-    # print("-----------------test sign and verify---------------")
-    # random_hex_str = utils.random_hex(sm2_crypt.para_len)
-    # sign = sm2_crypt.sign(data, random_hex_str)  # type: ignore
-    # print(f'sign:{sign}')
-    # verify = sm2_crypt.verify(sign, data)
-    # print(f'verify:{verify}')
-    # assert verify
+
+    dec_data = sm2_crypt.decrypt(enc_data)
+    #print(dec_data.decode())
+
+    assert mm == dec_data.decode()
+
+    print("-----------------test sign and verify---------------")
+
+    data = b'abcd'
+    random_hex_str = utils.random_hex(sm2_crypt.para_len)
+    sign = sm2_crypt.sign(data, random_hex_str)  # type: ignore
+    print(f'sign:{sign}')
+    verify = sm2_crypt.verify(sign, data)
+    print(f'verify:{verify}')
+    assert verify
 
 
 def test_sm3():
@@ -45,5 +47,5 @@ def test_sm3():
     print(f'verify: {verify}')
     assert verify
 
-test_sm3()
+#test_sm3()
 test_sm2()

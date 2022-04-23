@@ -279,12 +279,12 @@ class CryptSM2(GenSM2KEY):
         C1 = self._kg(int(k, 16), f"{G:x}".encode()).decode()
 
         xy = self._kg(int(k, 16), self.public_key)  # 将随机字符与公钥计算kg值
+        #print("encrypt xy = ", xy)
 
         x2 = xy[:self.para_len].decode()
         y2 = xy[self.para_len:2*self.para_len].decode()
 
-        t = sm3.sm3_kdf(xy, ml//2)
-
+        t = sm3.sm3_kdf(xy, ml/2) #type: ignore
         if int(t, 16) == 0:
             return  # type: ignore
         form = f'{{:0{ml}x}}'
@@ -315,7 +315,7 @@ class CryptSM2(GenSM2KEY):
             C3 = cipher[len_2:len_3]
 
         xy = self._kg(int(self.private_key, 16), C1)
-        # print('xy = %s' % xy)
+        #print('decrypt xy = %s' % xy)
         x2 = xy[:self.para_len].decode()
         y2 = xy[self.para_len:len_2].decode()
         cl = len(C2)
@@ -326,7 +326,8 @@ class CryptSM2(GenSM2KEY):
         form = f'{{:0{cl}x}}'
         M = form.format(int(C2, 16) ^ int(t, 16))
         u = sm3.sm3_hash(unhexlify(f'{x2:s}{M:s}{y2:s}'))
-        assert C3 == u, '数据完整性受破坏。'
+        #assert C3 == u, '数据完整性受破坏。'
+        #print(C3)
         return unhexlify(M)
 
     def _sm3_z(self, data: bytes):
@@ -338,8 +339,7 @@ class CryptSM2(GenSM2KEY):
         B = self.ecc_table['b']
         G = self.ecc_table['g']
         # sm3withsm2 的 z 值
-        z = unhexlify(b'0080'+b'31323334353637383132333435363738' +
-                      f"{A:x}{B:x}{G:x}".encode() + self.public_key)
+        z = unhexlify('0080'+'31323334353637383132333435363738' + f"{A:x}{B:x}{G:x}" + self.public_key.decode())
 
         Za = sm3.sm3_hash(z).decode()
         M_ = (Za + data.hex()).encode('utf-8')
@@ -354,3 +354,4 @@ class CryptSM2(GenSM2KEY):
     def verify_with_sm3(self, sign, data):
         sign_data = hexlify(self._sm3_z(data))
         return self.verify(sign, sign_data)
+        

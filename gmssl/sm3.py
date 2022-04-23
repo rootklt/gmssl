@@ -97,7 +97,7 @@ def sm3_cf(v_i, b_i):
     return [v_j[i] ^ v_i[i] for i in range(8)]
 
 
-def sm3_hash(msg) -> bytes:
+def sm3_hash(msg) -> bytes:  # sourcery skip: for-append-to-extend
     '''
     计算消息摘要
     :param msg bytes 消息
@@ -128,13 +128,13 @@ def sm3_hash(msg) -> bytes:
     for i in range(group_count):
         V.append(sm3_cf(V[i], B[i]))
     result = ""
-    for i in V[i+1]:
+    for i in V[i+1]: #type: ignore
         result = f'{result}{i:08x}'
     return result.encode()
 
 
-def sm3_kdf(z: bytes, klen: int) -> bytes:  # z为16进制表示的比特串（str），klen为密钥长度（单位byte）
-    #klen = int(klen)
+def sm3_kdf(z: bytes, klen) -> bytes:  # z为16进制表示的比特串（str），klen为密钥长度（单位byte）
+    klen = int(klen)
     rcnt = ceil(klen/32)
     zin = list(binascii.unhexlify(z))
     ha = b""

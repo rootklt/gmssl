@@ -3,6 +3,7 @@
 
 
 from binascii import hexlify, unhexlify
+from xml.dom import ValidationErr
 from .utils import _byte_unpack,_byte_pack, num2hex,loop_left_shift
 
 # __all__ = ['encrypt_ecb', 'decrypt_ecb',
@@ -75,12 +76,13 @@ class SM4Crypt(object):
         self.iv = b'\x00'*16
         self.key = b'\x00'*16
         self.mode = SM4_ENCRYPT
-        self.pad_mode = 'pkcs7'
+        self.pad_mode = 'zero'
 
     def init(self, key, iv = None, pad_mode = 'pkcs7'):
         self.key = key
         self.iv = iv
-        assert pad_mode not in ('pkcs7', 'zero'),'仅支持pkcs7、zero填充方式'
+        if pad_mode not in ['pkcs7', 'zero']:
+            raise ValidationErr('pad_mod:仅支持pkcs7、zero填充方式')  # type: ignore
         self.pad_mod = pad_mode
         
     def _s_box(self, byte):

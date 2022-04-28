@@ -103,6 +103,10 @@ def sm3_hash(msg) -> bytes:  # sourcery skip: for-append-to-extend
     :params: msg bytes 消息
     :returns: bytes  返回sm3哈希值，hex格式。
     '''
+    if not msg:
+        raise ValueError("消息{{msg}}不能为空")
+    if isinstance(msg, str):
+        msg = msg.encode('utf-8')
     len1 = len(msg)
     reserve1 = len1 % 64
     reserve1 = reserve1 + 1

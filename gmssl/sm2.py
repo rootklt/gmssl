@@ -73,6 +73,11 @@ class CryptSM2(GenSM2KEY):
         assert self.mode in (0, 1), 'mode must be one of (0, 1)'
 
     def _check_key(self, key: bytes) -> bytes:
+        '''
+        去密钥掉标识位
+        '''
+        if isinstance(key, str):
+            key = key.encode()
         if key.startswith(b'04') and len(key) == 66 or len(key) == 130:
             return key[2:]
         return key
@@ -102,7 +107,7 @@ class CryptSM2(GenSM2KEY):
                 Temp = self._double_point(Temp)  # type: ignore
             if (k & mask) != 0:
                 if (flag):
-                    Temp = self._add_point(Temp, Point)
+                    Temp = self._add_point(Temp, Point)# type: ignore
                 else:
                     flag = True
                     Temp = Point
@@ -238,7 +243,7 @@ class CryptSM2(GenSM2KEY):
         else:
             P1 = f'{P1.decode()}1'.encode()
             P1 = self._add_point(P1, P2)
-            P1 = self._convert_jacb_to_nor(P1)
+            P1 = self._convert_jacb_to_nor(P1) # type: ignore
 
         x = int(P1[:self.para_len], 16)  # type: ignore
         return r == (e + x) % self.ecc_table['n']
@@ -265,14 +270,18 @@ class CryptSM2(GenSM2KEY):
 
         return f'{R:064x}{S:064x}'.encode()
 
-    def encrypt(self, plaintext: bytes) -> bytes:
+    def encrypt(self, plain_text) -> bytes:
         '''
         加密函数，data消息(bytes)
         :params plaintext bytes 明文
-        :returns bytes 返回加密后的raw
+        :returns: bytes 返回加密后的raw
         '''
-
-        msg = plaintext.hex()  # type: ignore # 将明文转成16进制，并计算长度
+        if not plain_text:
+            raise ValueError(u'参数{{plain_text}}不能为空')
+        if isinstance(plain_text, str):
+            plain_text = plain_text.encode('utf-8')
+        
+        msg = plain_text.hex()  # type: ignore # 将明文转成16进制，并计算长度
         ml = len(msg)
         k = utils.random_hex(self.para_len)  # 获取随机的16进制字符串
         G = self.ecc_table['g']
@@ -291,17 +300,23 @@ class CryptSM2(GenSM2KEY):
         C2 = form.format(int(msg, 16) ^ int(t, 16))
         C3 = sm3.sm3_hash(unhexlify(f'{x2}{msg}{y2}')).decode()
 
-        return unhexlify(f'04{C1:s}{C3:s}{C2:s}') if self.mode else unhexlify(f'04{C1:s}{C2:s}{C3:s}')
+        return f'04{C1:s}{C3:s}{C2:s}'.encode() if self.mode else f'04{C1:s}{C2:s}{C3:s}'.encode()
 
-    def decrypt(self, cipher: bytes) -> bytes:
+    def decrypt(self, cipher_text) -> bytes:
         '''
         解密函数，data密文(bytes)
         :params cipher bytes 密文
         :returns bytes 原始明文
         '''
-        if cipher.startswith(b'\x04'):
-            cipher = cipher[1:]
-        cipher = cipher.hex().encode()
+        if not cipher_text:
+            raise ValueError(u'参数{{cipher_text}}不能为空')
+        if isinstance(cipher_text, str):
+            cipher_text = cipher_text.encode('utf-8')
+
+        if cipher_text.startswith(b'\x04'):
+            cipher_text = cipher_text[1:]
+
+        cipher = cipher_text.hex().encode()
         len_2 = 2 * self.para_len
         len_3 = len_2 + 64
 

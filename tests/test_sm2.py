@@ -14,7 +14,7 @@ def test_sm2():
     mm = "a好"*800
     enc_data = sm2_crypt.encrypt(mm)
 
-    print(hexlify(enc_data))
+    print(enc_data)
     dec_data = sm2_crypt.decrypt(enc_data)
     print(dec_data.decode(), 'aaa')
 

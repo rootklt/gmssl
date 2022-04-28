@@ -75,10 +75,13 @@ class SM4Crypt(object):
         self.iv = b'\x00'*16
         self.key = b'\x00'*16
         self.mode = SM4_ENCRYPT
+        self.pad_mode = 'pkcs7'
 
-    def init(self, key, iv = None):
+    def init(self, key, iv = None, pad_mode = 'pkcs7'):
         self.key = key
         self.iv = iv
+        assert pad_mode not in ('pkcs7', 'zero'),'仅支持pkcs7、zero填充方式'
+        self.pad_mod = pad_mode
         
     def _s_box(self, byte):
         return S_BOX.get(byte)
@@ -181,17 +184,18 @@ class SM4Crypt(object):
         """
 
         if self.mode != SM4_ENCRYPT:
-            # 去填充
-            return text[:-text[-1]]
+            return text[:-text[-1]] if self.pad_mod == 'pkcs7' else text.rstrip(b'\x00')
+
         if isinstance(text, str):
-            text = text.encode('utf-8')  # type: ignore
-        # 填充
+            #text = text.encode('utf-8')  # type: ignore
+            text = text.rstrip(b'\x00')
+
         p_num = BLOCK_BYTE - (len(text) % BLOCK_BYTE)
-        pad_s = chr(p_num) * p_num
+        pad_s = chr(p_num) * p_num if self.pad_mod == 'pkcs7' else '\x00'*p_num
 
         text = text.decode('utf8', errors='ignore')  # type: ignore
-
         return f'{text}{pad_s}'.encode()
+        
 
     # 电子密码本(ECB)
     def encrypt_ecb(self, plain_text:bytes) -> bytes:
@@ -204,18 +208,17 @@ class SM4Crypt(object):
         plain_text = self._padding(plain_text)
         if plain_text is None:
             return b''
-
         # 密钥检验
         #key = _key_iv_check(key_iv=key)
 
         plainhexlify = hexlify(plain_text)
-        cipherhexlify_list = []
+        cipherhexlify_list = ''
         for i in range(len(plain_text) // BLOCK_BYTE):
             subhexlify = plainhexlify[i * BLOCKhexlify:(i + 1) * BLOCKhexlify]
             cipher = self._crypt(int(subhexlify, 16),mk=int(self.key, 16))
-            cipherhexlify_list.append(num2hex(num=cipher, width=BLOCKhexlify))
+            cipherhexlify_list += f'{cipher:0{BLOCKhexlify}x}'
 
-        return ''.join(cipherhexlify_list).encode()
+        return cipherhexlify_list.encode()
 
     def decrypt_ecb(self, cipher_text:bytes) ->bytes:
         """
@@ -227,14 +230,13 @@ class SM4Crypt(object):
         cipherhexlify = hexlify(cipher_text)
         # 密码检验
         #key = _key_iv_check(key_iv=key)
-
-        plainhexlify_list = []
+        plainhexlify_list = ''
         for i in range(len(cipher_text) // BLOCK_BYTE):
             subhexlify = cipherhexlify[i * BLOCKhexlify:(i + 1) * BLOCKhexlify]
             plain = self._crypt(int(subhexlify, 16), mk=int(self.key, 16))
-            plainhexlify_list.append(num2hex(num=plain, width=BLOCKhexlify))
+            plainhexlify_list += f'{plain:0{BLOCKhexlify}x}'
 
-        return self._padding(unhexlify(''.join(plainhexlify_list)))
+        return self._padding(unhexlify(plainhexlify_list.encode()))
 
 
     # 密码块链接(CBC)
@@ -276,12 +278,12 @@ class SM4Crypt(object):
         #iv = _key_iv_check(key_iv=iv)
 
         ivs = [int(self.iv, 16)]
-        plainhexlify_list = []
+        plainhexlify_list = ''
         for i in range(len(cipher_text) // BLOCK_BYTE):
             subhexlify = cipherhexlify[i * BLOCKhexlify:(i + 1) * BLOCKhexlify]
             cipher = int(subhexlify, 16)
             plain = (ivs[i] ^ self._crypt(cipher,int(self.key, 16)))
             ivs.append(cipher)
-            plainhexlify_list.append(num2hex(num=plain, width=BLOCKhexlify))
+            plainhexlify_list += f'{plain:0{BLOCKhexlify}x}'
 
         return self._padding(unhexlify(''.join(plainhexlify_list)))

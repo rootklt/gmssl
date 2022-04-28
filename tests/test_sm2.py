@@ -1,5 +1,5 @@
 import base64
-import binascii
+from binascii import hexlify
 from gmssl import sm2
 from gmssl import utils
 
@@ -7,16 +7,16 @@ from gmssl import utils
 def test_sm2():
     private_key = b'00B9AB0B828FF68872F21A837FC303668428DEA11DCD1B24429D0C99E24EED83D5'
     public_key = b'B9C9A6E04E9C91F7BA880429273747D7EF5DDEB0BB2FF6317EB00BEF331A83081A6994B8993F3F5D6EADDDB81872266C87C018FB4162F5AF347B483E24620207'
-    sm2_crypt = sm2.CryptSM2(mode = 0)
+    sm2_crypt = sm2.CryptSM2(mode = 1)
     #private_key, public_key = sm2_crypt.gen_key_pair()
     sm2_crypt.set_key_pair(private_key, public_key)
 
     mm = "a好"*800
-    enc_data = sm2_crypt.encrypt(mm.encode())
+    enc_data = sm2_crypt.encrypt(mm)
 
-
+    print(hexlify(enc_data))
     dec_data = sm2_crypt.decrypt(enc_data)
-    #print(dec_data.decode())
+    print(dec_data.decode(), 'aaa')
 
     assert mm == dec_data.decode()
 

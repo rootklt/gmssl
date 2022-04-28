@@ -109,3 +109,44 @@ def random_hex(x): return ''.join(
 
 int_from_bytes = lambda data, order = 'big': int.from_bytes(
     unhexlify(data), order)
+
+
+def num2hex(num, width=1):
+    """
+    整数转为指定长度的十六进制字符串，不足补0
+    >>> num2hex(1000, width=4)
+    '03e8'
+    :param num: 整数
+    :param width: 16进制字符串长度， 默认为1
+    :return str
+    """
+    return '{:0>{width}}'.format(hex(num)[2:].replace('L', ''),
+                                 width=width)
+def _byte_unpack(num, byte_n=4):
+    # 分解后元组长度
+    _len = 4
+    # 步长
+    step = (byte_n // _len) * 2
+    hex_str = num2hex(num=num, width=byte_n * 2)
+    split_v = list(range(len(hex_str)))[::step] + [len(hex_str)]
+    return tuple(int(hex_str[s:e], base=16) for s, e in zip(split_v[:-1], split_v[1:]))
+
+
+def _byte_pack(byte_array, byte_n=4):
+    _len = 4
+    # byte_array每一项16进制字符串的长度
+    width = (byte_n // _len) * 2
+    if len(byte_array) != _len:
+        raise ValueError('byte_array length must be 4.')
+    return int(''.join([num2hex(num=v, width=width)
+                        for v in byte_array]), 16)
+
+def loop_left_shift(num, offset, base=32):
+    """
+    循环向左移位
+    >>> loop_left_shift(0b11010000, 3, base=8)
+    >>> 0b10000110
+    """
+    bin_str = '{:0>{width}}'.format(bin(num)[2:], width=base)
+    rem = offset % base
+    return int(bin_str[rem:] + bin_str[:rem], 2)

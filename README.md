@@ -6,8 +6,7 @@ GmSSL是一个开源的加密包的python实现，支持SM2/SM3/SM4等国密(国
 
 ### 安装
 
-```shell
-pip install gmssl   #原版安装
+```shellpip install gmssl   #原版安装
 或
 git clone git@github.com:rootklt/gmssl.git
 cd gmssl

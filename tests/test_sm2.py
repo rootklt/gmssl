@@ -47,5 +47,5 @@ def test_sm3():
     print(f'verify: {verify}')
     assert verify
 
-#test_sm3()
+test_sm3()
 test_sm2()

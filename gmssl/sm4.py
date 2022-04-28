@@ -1,169 +1,287 @@
-# -*-coding:utf-8-*-
-import copy
-from .utils import xor, rotl, get_uint32_be, put_uint32_be, \
-    bytes_to_list, list_to_bytes, padding, unpadding
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
-# Expanded SM4 box table
-SM4_BOXES_TABLE = [
-    0xd6, 0x90, 0xe9, 0xfe, 0xcc, 0xe1, 0x3d, 0xb7, 0x16, 0xb6, 0x14, 0xc2, 0x28, 0xfb, 0x2c,
-    0x05, 0x2b, 0x67, 0x9a, 0x76, 0x2a, 0xbe, 0x04, 0xc3, 0xaa, 0x44, 0x13, 0x26, 0x49, 0x86,
-    0x06, 0x99, 0x9c, 0x42, 0x50, 0xf4, 0x91, 0xef, 0x98, 0x7a, 0x33, 0x54, 0x0b, 0x43, 0xed,
-    0xcf, 0xac, 0x62, 0xe4, 0xb3, 0x1c, 0xa9, 0xc9, 0x08, 0xe8, 0x95, 0x80, 0xdf, 0x94, 0xfa,
-    0x75, 0x8f, 0x3f, 0xa6, 0x47, 0x07, 0xa7, 0xfc, 0xf3, 0x73, 0x17, 0xba, 0x83, 0x59, 0x3c,
-    0x19, 0xe6, 0x85, 0x4f, 0xa8, 0x68, 0x6b, 0x81, 0xb2, 0x71, 0x64, 0xda, 0x8b, 0xf8, 0xeb,
-    0x0f, 0x4b, 0x70, 0x56, 0x9d, 0x35, 0x1e, 0x24, 0x0e, 0x5e, 0x63, 0x58, 0xd1, 0xa2, 0x25,
-    0x22, 0x7c, 0x3b, 0x01, 0x21, 0x78, 0x87, 0xd4, 0x00, 0x46, 0x57, 0x9f, 0xd3, 0x27, 0x52,
-    0x4c, 0x36, 0x02, 0xe7, 0xa0, 0xc4, 0xc8, 0x9e, 0xea, 0xbf, 0x8a, 0xd2, 0x40, 0xc7, 0x38,
-    0xb5, 0xa3, 0xf7, 0xf2, 0xce, 0xf9, 0x61, 0x15, 0xa1, 0xe0, 0xae, 0x5d, 0xa4, 0x9b, 0x34,
-    0x1a, 0x55, 0xad, 0x93, 0x32, 0x30, 0xf5, 0x8c, 0xb1, 0xe3, 0x1d, 0xf6, 0xe2, 0x2e, 0x82,
-    0x66, 0xca, 0x60, 0xc0, 0x29, 0x23, 0xab, 0x0d, 0x53, 0x4e, 0x6f, 0xd5, 0xdb, 0x37, 0x45,
-    0xde, 0xfd, 0x8e, 0x2f, 0x03, 0xff, 0x6a, 0x72, 0x6d, 0x6c, 0x5b, 0x51, 0x8d, 0x1b, 0xaf,
-    0x92, 0xbb, 0xdd, 0xbc, 0x7f, 0x11, 0xd9, 0x5c, 0x41, 0x1f, 0x10, 0x5a, 0xd8, 0x0a, 0xc1,
-    0x31, 0x88, 0xa5, 0xcd, 0x7b, 0xbd, 0x2d, 0x74, 0xd0, 0x12, 0xb8, 0xe5, 0xb4, 0xb0, 0x89,
-    0x69, 0x97, 0x4a, 0x0c, 0x96, 0x77, 0x7e, 0x65, 0xb9, 0xf1, 0x09, 0xc5, 0x6e, 0xc6, 0x84,
-    0x18, 0xf0, 0x7d, 0xec, 0x3a, 0xdc, 0x4d, 0x20, 0x79, 0xee, 0x5f, 0x3e, 0xd7, 0xcb, 0x39,
-    0x48,
-]
 
-# System parameter
-SM4_FK = [0xa3b1bac6, 0x56aa3350, 0x677d9197, 0xb27022dc]
+from binascii import hexlify, unhexlify
+from .utils import _byte_unpack,_byte_pack, num2hex,loop_left_shift
 
-# fixed parameter
-SM4_CK = [
-    0x00070e15, 0x1c232a31, 0x383f464d, 0x545b6269,
-    0x70777e85, 0x8c939aa1, 0xa8afb6bd, 0xc4cbd2d9,
-    0xe0e7eef5, 0xfc030a11, 0x181f262d, 0x343b4249,
-    0x50575e65, 0x6c737a81, 0x888f969d, 0xa4abb2b9,
-    0xc0c7ced5, 0xdce3eaf1, 0xf8ff060d, 0x141b2229,
-    0x30373e45, 0x4c535a61, 0x686f767d, 0x848b9299,
-    0xa0a7aeb5, 0xbcc3cad1, 0xd8dfe6ed, 0xf4fb0209,
-    0x10171e25, 0x2c333a41, 0x484f565d, 0x646b7279
-]
+# __all__ = ['encrypt_ecb', 'decrypt_ecb',
+#            'encrypt_cbc', 'decrypt_cbc',
+#            'encrypt', 'decrypt']
 
+__all__ = ['SM4Crypt']
+# S盒
+S_BOX = {
+    0X00: 0XD6, 0X01: 0X90, 0X02: 0XE9, 0X03: 0XFE, 0X04: 0XCC, 0X05: 0XE1, 0X06: 0X3D, 0X07: 0XB7,
+    0X08: 0X16, 0X09: 0XB6, 0X0A: 0X14, 0X0B: 0XC2, 0X0C: 0X28, 0X0D: 0XFB, 0X0E: 0X2C, 0X0F: 0X05,
+    0X10: 0X2B, 0X11: 0X67, 0X12: 0X9A, 0X13: 0X76, 0X14: 0X2A, 0X15: 0XBE, 0X16: 0X04, 0X17: 0XC3,
+    0X18: 0XAA, 0X19: 0X44, 0X1A: 0X13, 0X1B: 0X26, 0X1C: 0X49, 0X1D: 0X86, 0X1E: 0X06, 0X1F: 0X99,
+    0X20: 0X9C, 0X21: 0X42, 0X22: 0X50, 0X23: 0XF4, 0X24: 0X91, 0X25: 0XEF, 0X26: 0X98, 0X27: 0X7A,
+    0X28: 0X33, 0X29: 0X54, 0X2A: 0X0B, 0X2B: 0X43, 0X2C: 0XED, 0X2D: 0XCF, 0X2E: 0XAC, 0X2F: 0X62,
+    0X30: 0XE4, 0X31: 0XB3, 0X32: 0X1C, 0X33: 0XA9, 0X34: 0XC9, 0X35: 0X08, 0X36: 0XE8, 0X37: 0X95,
+    0X38: 0X80, 0X39: 0XDF, 0X3A: 0X94, 0X3B: 0XFA, 0X3C: 0X75, 0X3D: 0X8F, 0X3E: 0X3F, 0X3F: 0XA6,
+    0X40: 0X47, 0X41: 0X07, 0X42: 0XA7, 0X43: 0XFC, 0X44: 0XF3, 0X45: 0X73, 0X46: 0X17, 0X47: 0XBA,
+    0X48: 0X83, 0X49: 0X59, 0X4A: 0X3C, 0X4B: 0X19, 0X4C: 0XE6, 0X4D: 0X85, 0X4E: 0X4F, 0X4F: 0XA8,
+    0X50: 0X68, 0X51: 0X6B, 0X52: 0X81, 0X53: 0XB2, 0X54: 0X71, 0X55: 0X64, 0X56: 0XDA, 0X57: 0X8B,
+    0X58: 0XF8, 0X59: 0XEB, 0X5A: 0X0F, 0X5B: 0X4B, 0X5C: 0X70, 0X5D: 0X56, 0X5E: 0X9D, 0X5F: 0X35,
+    0X60: 0X1E, 0X61: 0X24, 0X62: 0X0E, 0X63: 0X5E, 0X64: 0X63, 0X65: 0X58, 0X66: 0XD1, 0X67: 0XA2,
+    0X68: 0X25, 0X69: 0X22, 0X6A: 0X7C, 0X6B: 0X3B, 0X6C: 0X01, 0X6D: 0X21, 0X6E: 0X78, 0X6F: 0X87,
+    0X70: 0XD4, 0X71: 0X00, 0X72: 0X46, 0X73: 0X57, 0X74: 0X9F, 0X75: 0XD3, 0X76: 0X27, 0X77: 0X52,
+    0X78: 0X4C, 0X79: 0X36, 0X7A: 0X02, 0X7B: 0XE7, 0X7C: 0XA0, 0X7D: 0XC4, 0X7E: 0XC8, 0X7F: 0X9E,
+    0X80: 0XEA, 0X81: 0XBF, 0X82: 0X8A, 0X83: 0XD2, 0X84: 0X40, 0X85: 0XC7, 0X86: 0X38, 0X87: 0XB5,
+    0X88: 0XA3, 0X89: 0XF7, 0X8A: 0XF2, 0X8B: 0XCE, 0X8C: 0XF9, 0X8D: 0X61, 0X8E: 0X15, 0X8F: 0XA1,
+    0X90: 0XE0, 0X91: 0XAE, 0X92: 0X5D, 0X93: 0XA4, 0X94: 0X9B, 0X95: 0X34, 0X96: 0X1A, 0X97: 0X55,
+    0X98: 0XAD, 0X99: 0X93, 0X9A: 0X32, 0X9B: 0X30, 0X9C: 0XF5, 0X9D: 0X8C, 0X9E: 0XB1, 0X9F: 0XE3,
+    0XA0: 0X1D, 0XA1: 0XF6, 0XA2: 0XE2, 0XA3: 0X2E, 0XA4: 0X82, 0XA5: 0X66, 0XA6: 0XCA, 0XA7: 0X60,
+    0XA8: 0XC0, 0XA9: 0X29, 0XAA: 0X23, 0XAB: 0XAB, 0XAC: 0X0D, 0XAD: 0X53, 0XAE: 0X4E, 0XAF: 0X6F,
+    0XB0: 0XD5, 0XB1: 0XDB, 0XB2: 0X37, 0XB3: 0X45, 0XB4: 0XDE, 0XB5: 0XFD, 0XB6: 0X8E, 0XB7: 0X2F,
+    0XB8: 0X03, 0XB9: 0XFF, 0XBA: 0X6A, 0XBB: 0X72, 0XBC: 0X6D, 0XBD: 0X6C, 0XBE: 0X5B, 0XBF: 0X51,
+    0XC0: 0X8D, 0XC1: 0X1B, 0XC2: 0XAF, 0XC3: 0X92, 0XC4: 0XBB, 0XC5: 0XDD, 0XC6: 0XBC, 0XC7: 0X7F,
+    0XC8: 0X11, 0XC9: 0XD9, 0XCA: 0X5C, 0XCB: 0X41, 0XCC: 0X1F, 0XCD: 0X10, 0XCE: 0X5A, 0XCF: 0XD8,
+    0XD0: 0X0A, 0XD1: 0XC1, 0XD2: 0X31, 0XD3: 0X88, 0XD4: 0XA5, 0XD5: 0XCD, 0XD6: 0X7B, 0XD7: 0XBD,
+    0XD8: 0X2D, 0XD9: 0X74, 0XDA: 0XD0, 0XDB: 0X12, 0XDC: 0XB8, 0XDD: 0XE5, 0XDE: 0XB4, 0XDF: 0XB0,
+    0XE0: 0X89, 0XE1: 0X69, 0XE2: 0X97, 0XE3: 0X4A, 0XE4: 0X0C, 0XE5: 0X96, 0XE6: 0X77, 0XE7: 0X7E,
+    0XE8: 0X65, 0XE9: 0XB9, 0XEA: 0XF1, 0XEB: 0X09, 0XEC: 0XC5, 0XED: 0X6E, 0XEE: 0XC6, 0XEF: 0X84,
+    0XF0: 0X18, 0XF1: 0XF0, 0XF2: 0X7D, 0XF3: 0XEC, 0XF4: 0X3A, 0XF5: 0XDC, 0XF6: 0X4D, 0XF7: 0X20,
+    0XF8: 0X79, 0XF9: 0XEE, 0XFA: 0X5F, 0XFB: 0X3E, 0XFC: 0XD7, 0XFD: 0XCB, 0XFE: 0X39, 0XFF: 0X48
+}
+
+# 系统参数FK
+FK = (0XA3B1BAC6, 0X56AA3350, 0X677D9197, 0XB27022DC)
+
+# 固定参数CK
+CK = (0X00070E15, 0X1C232A31, 0X383F464D, 0X545B6269,
+      0X70777E85, 0X8C939AA1, 0XA8AFB6BD, 0XC4CBD2D9,
+      0XE0E7EEF5, 0XFC030A11, 0X181F262D, 0X343B4249,
+      0X50575E65, 0X6C737A81, 0X888F969D, 0XA4ABB2B9,
+      0XC0C7CED5, 0XDCE3EAF1, 0XF8FF060D, 0X141B2229,
+      0X30373E45, 0X4C535A61, 0X686F767D, 0X848B9299,
+      0XA0A7AEB5, 0XBCC3CAD1, 0XD8DFE6ED, 0XF4FB0209,
+      0X10171E25, 0X2C333A41, 0X484F565D, 0X646B7279)
+
+# 轮密钥缓存
+_rk_cache = {}
+
+# 加密
 SM4_ENCRYPT = 0
+# 解密
 SM4_DECRYPT = 1
+# 分组byte数
+BLOCK_BYTE = 16
+BLOCKhexlify = BLOCK_BYTE * 2
+
+class SM4Crypt(object):
+    def __init__(self):
+        self.iv = b'\x00'*16
+        self.key = b'\x00'*16
+        self.mode = SM4_ENCRYPT
+
+    def init(self, key, iv = None):
+        self.key = key
+        self.iv = iv
+        
+    def _s_box(self, byte):
+        return S_BOX.get(byte)
+
+    def _non_linear_map(self, byte_array):
+        """
+        非线性变换, 输入A=(a0, a1, a2, a3)
+        (b0, b1, b2, b3) = (Sbox(a0), Sbox(a1), Sbox(a2), Sbox(a3))
+        """
+        return (self._s_box(byte_array[0]), self._s_box(byte_array[1]),
+                self._s_box(byte_array[2]), self._s_box(byte_array[3]))
 
 
-class CryptSM4(object):
+    def _linear_map(self, byte4):
+        """
+        线性变换L
+        L(B) = B ⊕ (B <<< 2) ⊕ (B <<< 10) ⊕ (B <<< 18) ⊕ (B <<< 24)
+        """
+        _left = loop_left_shift
+        return byte4 ^ _left(byte4, 2) ^ _left(byte4, 10) ^ _left(byte4, 18) ^ _left(byte4, 24)
 
-    def __init__(self, mode=SM4_ENCRYPT):
-        self.sk = [0]*32
-        self.mode = mode
-    # Calculating round encryption key.
-    # args:    [in] a: a is a 32 bits unsigned value;
-    # return: sk[i]: i{0,1,2,3,...31}.
 
-    @classmethod
-    def _round_key(cls, ka):
-        b = [0, 0, 0, 0]
-        a = put_uint32_be(ka)
-        b[0] = SM4_BOXES_TABLE[a[0]]
-        b[1] = SM4_BOXES_TABLE[a[1]]
-        b[2] = SM4_BOXES_TABLE[a[2]]
-        b[3] = SM4_BOXES_TABLE[a[3]]
-        bb = get_uint32_be(b[:4])
-        return bb ^ (rotl(bb, 13)) ^ (rotl(bb, 23))
+    def _linear_map_s(self, byte4):
+        """
+        线性变换L'
+        L'(B) = B ⊕ (B <<< 13) ⊕ (B <<< 23)
+        """
+        _left = loop_left_shift
+        return byte4 ^ _left(byte4, 13) ^ _left(byte4, 23)
 
-    # Calculating and getting encryption/decryption contents.
-    # args:    [in] x0: original contents;
-    # args:    [in] x1: original contents;
-    # args:    [in] x2: original contents;
-    # args:    [in] x3: original contents;
-    # args:    [in] rk: encryption/decryption key;
-    # return the contents of encryption/decryption contents.
-    @classmethod
-    def _f(cls, x0, x1, x2, x3, rk):
-        # "T algorithm" == "L algorithm" + "t algorithm".
-        # args:    [in] a: a is a 32 bits unsigned value;
-        # return: c: c is calculated with line algorithm "L" and nonline algorithm "t"
-        def _sm4_l_t(ka):
-            b = [0, 0, 0, 0]
-            a = put_uint32_be(ka)
-            b[0] = SM4_BOXES_TABLE[a[0]]
-            b[1] = SM4_BOXES_TABLE[a[1]]
-            b[2] = SM4_BOXES_TABLE[a[2]]
-            b[3] = SM4_BOXES_TABLE[a[3]]
-            bb = get_uint32_be(b[:4])
-            return bb ^ (rotl(bb, 2)) ^ (rotl(bb, 10)) ^ (rotl(bb, 18)) ^ (rotl(bb, 24))
-        return (x0 ^ _sm4_l_t(x1 ^ x2 ^ x3 ^ rk))
+    def _rep_t(self, byte4):
+        """合成置换T, 由非线性变换和线性变换L复合而成"""
+        # 非线性变换
+        b_array = self._non_linear_map(_byte_unpack(byte4))
+        # 线性变换L
+        return self._linear_map(_byte_pack(b_array))
 
-    def set_key(self, key, mode):
-        key = bytes_to_list(key)
-        MK = [0, 0, 0, 0]
-        k = [0]*36
-        MK[0] = get_uint32_be(key[:4])
-        MK[1] = get_uint32_be(key[4:8])
-        MK[2] = get_uint32_be(key[8:12])
-        MK[3] = get_uint32_be(key[12:16])
-        k[:4] = xor(MK[:4], SM4_FK[:4])
-        for i in range(32):
-            k[i + 4] = k[i] ^ (
-                self._round_key(k[i + 1] ^ k[i + 2] ^ k[i + 3] ^ SM4_CK[i]))
-            self.sk[i] = k[i + 4]
-        self.mode = mode
-        if mode == SM4_DECRYPT:
-            for idx in range(16):
-                t = self.sk[idx]
-                self.sk[idx] = self.sk[31 - idx]
-                self.sk[31 - idx] = t
 
-    def one_round(self, sk, in_put):
-        out_put = []
-        ulbuf = [0]*36
-        ulbuf[0] = get_uint32_be(in_put[:4])
-        ulbuf[1] = get_uint32_be(in_put[4:8])
-        ulbuf[2] = get_uint32_be(in_put[8:12])
-        ulbuf[3] = get_uint32_be(in_put[12:16])
-        for idx in range(32):
-            ulbuf[idx + 4] = self._f(ulbuf[idx], ulbuf[idx + 1],
-                                     ulbuf[idx + 2], ulbuf[idx + 3], sk[idx])
+    def _rep_t_s(self, byte4):
+        """
+        合成置换T', 由非线性变换和线性变换L'复合而成
+        """
+        # 非线性变换
+        b_array = self._non_linear_map(_byte_unpack(byte4))
+        # 线性变换L'
+        return self._linear_map_s(_byte_pack(b_array))
 
-        out_put += put_uint32_be(ulbuf[35])
-        out_put += put_uint32_be(ulbuf[34])
-        out_put += put_uint32_be(ulbuf[33])
-        out_put += put_uint32_be(ulbuf[32])
-        return out_put
 
-    def crypt_ecb(self, input_data: bytes) -> bytes:
-        # SM4-ECB block encryption/decryption
-        #input_data = list(input_data)
-        if self.mode == SM4_ENCRYPT:
-            input_data = padding(input_data)
-        length = len(input_data)
-        i = 0
-        output_data = []
-        while length > 0:
-            output_data += self.one_round(self.sk, input_data[i:i+16])
-            i += 16
-            length -= 16
+    def _round_keys(self, mk):
+        """
+        轮密钥由加密密钥通过密钥扩展算法生成
+        加密密钥MK = (MK0, MK1, MK2, MK3)
+        轮密钥生成算法:
+        (K0, K1, K2, K3) = (MK0 ⊕ FK0, MK1 ⊕ FK1, MK2 ⊕ FK2, MK3 ⊕ FK3)
+        rki = Ki+4 = Ki⊕T'(Ki+1 ⊕ Ki+2 ⊕ Ki+3 ⊕ CKi) i=0, 1,...,31
+        :param mk: 加密密钥, 16byte, 128bit
+        :return list
+        """
+        # 尝试从轮密钥缓存中获取轮密钥
+        # 没有获取到, 根据密钥扩展算法生成
+        _rk_keys = _rk_cache.get(mk)
+        if _rk_keys is None:
+            mk0, mk1, mk2, mk3 = _byte_unpack(mk, byte_n=16)
+            keys = [mk0 ^ FK[0], mk1 ^ FK[1], mk2 ^ FK[2], mk3 ^ FK[3]]
+            for i in range(32):
+                rk = keys[i] ^ self._rep_t_s(keys[i + 1] ^ keys[i + 2] ^ keys[i + 3] ^ CK[i])
+                keys.append(rk)
+            _rk_keys = keys[4:]
+            # 加入轮密钥缓存中
+            _rk_cache[mk] = _rk_keys
+        return _rk_keys
+
+    def _round_f(self, byte4_array, rk):
+        """
+        轮函数, F(X0, X1, X2, X3, rk) = X0 ⊕ T(X1 ⊕ X2 ⊕ X3 ⊕ rk)
+        :param byte4_array: (X0, X1, X2, X3), 每一项4byte, 32bit
+        :param rk: 轮密钥, 4byte, 32bit
+        """
+        x0, x1, x2, x3 = byte4_array
+        return x0 ^ self._rep_t(x1 ^ x2 ^ x3 ^ rk)
+
+    def _crypt(self, num, mk):
+        """
+        SM4加密和解密
+        :param num: 密文或明文 16byte
+        :param mk:  密钥 16byte
+        :param mode: 轮密钥顺序
+        """
+        x_keys = list(_byte_unpack(num, byte_n=16))
+        round_keys = self._round_keys(mk)
         if self.mode == SM4_DECRYPT:
-            return bytes(unpadding(output_data))
-        return bytes(output_data)
+            round_keys = round_keys[::-1]
 
-    def crypt_cbc(self, iv: bytes, input_data: bytes) -> bytes:
-        # SM4-CBC buffer encryption/decryption
-        i = 0
-        output_data = []
-        iv = list(iv)  # type: ignore
-        if self.mode == SM4_DECRYPT:
-            length = len(input_data)
-            while length > 0:
-                output_data += self.one_round(self.sk, input_data[i:i+16])
-                output_data[i:i+16] = xor(output_data[i:i+16], iv[:16])
-                iv = copy.deepcopy(input_data[i:i + 16])
-                i += 16
-                length -= 16
-            output_data = bytes(output_data)
-            return unpadding(output_data)
+        x_keys.extend(self._round_f(x_keys[i:i+4], round_keys[i]) for i in range(32))
+        return _byte_pack(x_keys[-4:][::-1], byte_n=16)
 
-        input_data = padding(input_data)
-        length = len(input_data)
-        tmp_input = [0]*16
-        while length > 0:
-            tmp_input[:16] = xor(input_data[i:i+16], iv[:16])
-            output_data += self.one_round(self.sk, tmp_input[:16])
-            iv = copy.deepcopy(output_data[i:i+16])
-            i += 16
-            length -= 16
+    def _padding(self, text:bytes):
+        """
+        加密填充和解密去填充
+        """
 
-        return bytes(output_data)
+        if self.mode != SM4_ENCRYPT:
+            # 去填充
+            return text[:-text[-1]]
+        if isinstance(text, str):
+            text = text.encode('utf-8')  # type: ignore
+        # 填充
+        p_num = BLOCK_BYTE - (len(text) % BLOCK_BYTE)
+        pad_s = chr(p_num) * p_num
+
+        text = text.decode('utf8', errors='ignore')  # type: ignore
+
+        return f'{text}{pad_s}'.encode()
+
+    # 电子密码本(ECB)
+    def encrypt_ecb(self, plain_text:bytes) -> bytes:
+        """
+        SM4(ECB)加密
+        :param plain_text: 明文
+        :param key: 密钥, 小于等于16字节
+        """
+        self.mode = SM4_ENCRYPT
+        plain_text = self._padding(plain_text)
+        if plain_text is None:
+            return b''
+
+        # 密钥检验
+        #key = _key_iv_check(key_iv=key)
+
+        plainhexlify = hexlify(plain_text)
+        cipherhexlify_list = []
+        for i in range(len(plain_text) // BLOCK_BYTE):
+            subhexlify = plainhexlify[i * BLOCKhexlify:(i + 1) * BLOCKhexlify]
+            cipher = self._crypt(int(subhexlify, 16),mk=int(self.key, 16))
+            cipherhexlify_list.append(num2hex(num=cipher, width=BLOCKhexlify))
+
+        return ''.join(cipherhexlify_list).encode()
+
+    def decrypt_ecb(self, cipher_text:bytes) ->bytes:
+        """
+        SM4(ECB)解密
+        :param cipher_text: 密文
+        :param key: 密钥, 小于等于16字节
+        """
+        self.mode = SM4_DECRYPT
+        cipherhexlify = hexlify(cipher_text)
+        # 密码检验
+        #key = _key_iv_check(key_iv=key)
+
+        plainhexlify_list = []
+        for i in range(len(cipher_text) // BLOCK_BYTE):
+            subhexlify = cipherhexlify[i * BLOCKhexlify:(i + 1) * BLOCKhexlify]
+            plain = self._crypt(int(subhexlify, 16), mk=int(self.key, 16))
+            plainhexlify_list.append(num2hex(num=plain, width=BLOCKhexlify))
+
+        return self._padding(unhexlify(''.join(plainhexlify_list)))
+
+
+    # 密码块链接(CBC)
+    def encrypt_cbc(self, plain_text:bytes)->bytes:
+        """
+        SM4(CBC)加密
+        :param plain_text: 明文
+        :param key: 密钥, 小于等于16字节
+        :param iv: 初始化向量, 小于等于16字节
+        """
+        self.mode = SM4_ENCRYPT
+        plain_text = self._padding(plain_text)
+        if plain_text is None:
+            return b''
+
+        plainhexlify = hexlify(plain_text)
+        ivs = [int(self.iv, 16)]
+        for i in range(len(plain_text) // BLOCK_BYTE):
+            subhexlify = plainhexlify[i * BLOCKhexlify:(i + 1) * BLOCKhexlify]
+            cipher = self._crypt(int(subhexlify, 16) ^ ivs[i],mk=int(self.key, 16))
+            ivs.append(cipher)
+
+        return ''.join([num2hex(num=c, width=BLOCKhexlify) for c in ivs[1:]]).encode()
+
+
+    def decrypt_cbc(self, cipher_text:bytes)->bytes:
+        """
+        SM4(CBC)解密
+        :param cipher_text: 密文
+        :param key: 密钥 小于等于16字节
+        :param iv: 初始化向量 小于等于16字节
+        """
+        self.mode = SM4_DECRYPT
+        cipherhexlify = hexlify(cipher_text)
+        
+        # 密钥检测
+        #key = _key_iv_check(key_iv=key)
+        # 初始化向量检测
+        #iv = _key_iv_check(key_iv=iv)
+
+        ivs = [int(self.iv, 16)]
+        plainhexlify_list = []
+        for i in range(len(cipher_text) // BLOCK_BYTE):
+            subhexlify = cipherhexlify[i * BLOCKhexlify:(i + 1) * BLOCKhexlify]
+            cipher = int(subhexlify, 16)
+            plain = (ivs[i] ^ self._crypt(cipher,int(self.key, 16)))
+            ivs.append(cipher)
+            plainhexlify_list.append(num2hex(num=plain, width=BLOCKhexlify))
+
+        return self._padding(unhexlify(''.join(plainhexlify_list)))

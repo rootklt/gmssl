@@ -1,5 +1,5 @@
 import base64
-from binascii import hexlify
+from binascii import hexlify,unhexlify
 from gmssl import sm2
 from gmssl import utils
 
@@ -13,12 +13,10 @@ def test_sm2():
 
     mm = "a好"*800
     enc_data = sm2_crypt.encrypt(mm)
+    dec_data = sm2_crypt.decrypt(unhexlify(enc_data))
 
-    print(enc_data)
-    dec_data = sm2_crypt.decrypt(enc_data)
-    print(dec_data.decode(), 'aaa')
-
-    assert mm == dec_data.decode()
+    print(dec_data.decode('utf-8'))
+    assert mm == dec_data.decode('utf-8')
 
     print("-----------------test sign and verify---------------")
 

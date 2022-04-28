@@ -46,8 +46,8 @@ sm2_crypt.set_private_key(private_key=private_key)
 ```python
 #数据和加密后数据为bytes类型
 data = b"111"
-enc_data = sm2_crypt.encrypt(data)
-dec_data =sm2_crypt.decrypt(enc_data)
+enc_data = sm2_crypt.encrypt(data)   #加密后返回的是hex字符串
+dec_data =sm2_crypt.decrypt(binascii.unhexlify(enc_data))
 assert dec_data == data
 ```
 
@@ -88,28 +88,29 @@ public_key = b'3e206c2c45596028c509f1941259dfb8d3060ae26284f67b8400bfd623e17637'
 国密SM4(无线局域网SMS4)算法， 一个分组算法， 分组长度为128bit， 密钥长度为128bit，
 算法具体内容参照[SM4算法](https://drive.google.com/file/d/0B0o25hRlUdXcbzdjT0hrYkkwUjg/view?usp=sharing)。
 
-gmssl是包含国密SM4算法的Python实现， 提供了 `encrypt_ecb`、 `decrypt_ecb`、 `encrypt_cbc`、
-`decrypt_cbc`等函数用于加密解密， 用法如下：
+gmssl是包含国密SM4算法的Python实现， 提供了 `encrypt_ecb`、 `decrypt_ecb`、`encrypt_cbc`、`decrypt_cbc`等函数用于加密解密， 用法如下：
 
 #### 1. 初始化`CryptSM4`
 
 ```python
-from gmssl.sm4 import CryptSM4, SM4_ENCRYPT, SM4_DECRYPT
+from gmssl.sm4 import SM4Crypt, SM4_ENCRYPT, SM4_DECRYPT
 
 key = b'3l5butlj26hvv313'
 value = b'111' #  bytes类型
-iv = b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' #  bytes类型
-crypt_sm4 = CryptSM4()
+iv = b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' #  bytes
+pad_mode = 'pkcs7' # 支持pkcs7 和 zero两种, 默认是pkcs7
+
+
+crypt_sm4 = SM4Crypt()
+crypt_sm4.init(key = key, iv = iv, pad_mode = 'pkcs7')  #初始化key 或 填充模式，ECB加密时可以不设置iv
 ```
 
 #### 2. `encrypt_ecb`和`decrypt_ecb`
 
 ```python
 
-crypt_sm4.set_key(key, SM4_ENCRYPT)
-encrypt_value = crypt_sm4.crypt_ecb(value) #  bytes类型
-crypt_sm4.set_key(key, SM4_DECRYPT)
-decrypt_value = crypt_sm4.crypt_ecb(encrypt_value) #  bytes类型
+encrypt_value = crypt_sm4.encrypt_ecb(value) #  bytes|str类型,返回hex字符串
+decrypt_value = crypt_sm4.decrypt_ecb(binascii.unhexlify(encrypt_value)) #  bytes|str类型
 assert value == decrypt_value
 
 ```
@@ -118,10 +119,18 @@ assert value == decrypt_value
 
 ```python
 
-crypt_sm4.set_key(key, SM4_ENCRYPT)
-encrypt_value = crypt_sm4.crypt_cbc(iv , value) #  bytes类型
-crypt_sm4.set_key(key, SM4_DECRYPT)
-decrypt_value = crypt_sm4.crypt_cbc(iv , encrypt_value) #  bytes类型
+encrypt_value = crypt_sm4.encrypt_cbc(value) #  bytes|str类型,返回的是hex字符串
+decrypt_value = crypt_sm4.decrypt_cbc(binascii.unhexlify(encrypt_value)) #  bytes|str类型
 assert value == decrypt_value
 
+```
+
+### SM3消息摘要
+
+```python
+from gmssl import sm3
+
+data = 'hello'
+
+sm3.sm3_hash(data)
 ```

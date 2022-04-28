@@ -8,7 +8,7 @@ iv = hexlify(b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 crypt_sm4 = SM4Crypt()
 
 print(key)
-crypt_sm4.init(key = key, iv= iv)
+crypt_sm4.init(key = key, iv= iv, pad_mode = 'zero')
 encrypt_value = crypt_sm4.encrypt_ecb(value)
 print(encrypt_value)
 decrypt_value = crypt_sm4.decrypt_ecb(unhexlify(encrypt_value))

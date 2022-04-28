@@ -125,45 +125,6 @@ def sm3_hash(msg) -> bytes:  # sourcery skip: for-append-to-extend
         result = f'{result}{i:08x}'
     return result.encode()
 
-        # print(msg)
-    # len1 = len(msg)
-    # reserve1 = len1 % 64
-    # msg += b'\x80'
-    # reserve1 = reserve1 + 1
-    # # 56-64, add 64 byte
-    # range_end = 56
-    # if reserve1 > range_end:
-    #     range_end = range_end + 64
-
-    # for i in range(reserve1, range_end):
-    #     msg+=b'\x00'
-
-    # bit_length = (len1) * 8
-    # bit_length_str = [bit_length % 0x100]
-    # for i in range(7):
-    #     bit_length = int(bit_length / 0x100)
-    #     bit_length_str.append(bit_length % 0x100)
-    # for i in range(8):
-    #     msg += chr(bit_length_str[7-i]).encode()
-
-    # group_count = round(len(msg) / 64)
-
-    # B = []
-    # for i in range(0, group_count):
-    #     B.append(msg[i*64:(i+1)*64])
-
-    # V = []
-    # V.append(IV)
-    # for i in range(0, group_count):
-    #     V.append(sm3_cf(V[i], B[i]))
-
-    # y = V[i+1]
-    # result = ""
-    # for i in y:
-    #     result = '%s%08x' % (result, i)
-    # return result  # type: ignore
-
-
 def sm3_kdf(z: bytes, klen) -> bytes:  # z为16进制表示的比特串（str），klen为密钥长度（单位byte）
     klen = int(klen)
     rcnt = ceil(klen/32)

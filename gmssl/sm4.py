@@ -70,17 +70,19 @@ SM4_DECRYPT = 1
 # 分组byte数
 BLOCK_BYTE = 16
 BLOCKhexlify = BLOCK_BYTE * 2
+SM4_PAD_PKCS7 = 'pkcs7'
+SM4_PAD_ZERO = 'zero'
 
 class SM4Crypt(object):
     def __init__(self):
-        self.iv = b'\x00'*16
-        self.key = b'\x00'*16
+        self.iv = b'\x00'*BLOCK_BYTE
+        self.key = b'\x00'*BLOCK_BYTE
         self.mode = SM4_ENCRYPT
-        self.pad_mode = 'zero'
+        self.pad_mode = SM4_PAD_PKCS7
 
-    def init(self, key, iv = None, pad_mode = 'pkcs7'):
-        self.key = key
-        self.iv = iv
+    def init(self, key, iv = None, pad_mode = SM4_PAD_PKCS7):
+        self.key = key.encode() if isinstance(key, str) else key
+        self.iv = iv.encode() if isinstance(iv, str) else iv
         if pad_mode not in ['pkcs7', 'zero']:
             raise ValidationErr('pad_mod:仅支持pkcs7、zero填充方式')  # type: ignore
         self.pad_mod = pad_mode
@@ -165,12 +167,12 @@ class SM4Crypt(object):
         x0, x1, x2, x3 = byte4_array
         return x0 ^ self._rep_t(x1 ^ x2 ^ x3 ^ rk)
 
-    def _crypt(self, num, mk):
+    def _crypt(self, num, mk) ->int:
         """
         SM4加密和解密
-        :param num: 密文或明文 16byte
-        :param mk:  密钥 16byte
-        :param mode: 轮密钥顺序
+        :param: num: 密文或明文 16byte
+        :param: mk:  密钥 16byte
+        :param: mode: 轮密钥顺序
         """
         x_keys = list(_byte_unpack(num, byte_n=16))
         round_keys = self._round_keys(mk)
@@ -180,33 +182,38 @@ class SM4Crypt(object):
         x_keys.extend(self._round_f(x_keys[i:i+4], round_keys[i]) for i in range(32))
         return _byte_pack(x_keys[-4:][::-1], byte_n=16)
 
-    def _padding(self, text:bytes):
+    def _padding(self, text) ->bytes:
         """
         加密填充和解密去填充
+        :param: text: 
         """
 
-        if self.mode != SM4_ENCRYPT:
-            return text[:-text[-1]] if self.pad_mod == 'pkcs7' else text.rstrip(b'\x00')
-
         if isinstance(text, str):
-            #text = text.encode('utf-8')  # type: ignore
-            text = text.rstrip(b'\x00')
+            text = text.encode('utf-8')  # type: ignore
+
+        if self.mode != SM4_ENCRYPT:
+            return text[:-text[-1]] if self.pad_mod == SM4_PAD_PKCS7 else text.rstrip(b'\x00')
 
         p_num = BLOCK_BYTE - (len(text) % BLOCK_BYTE)
-        pad_s = chr(p_num) * p_num if self.pad_mod == 'pkcs7' else '\x00'*p_num
+        pad_s = chr(p_num) * p_num if self.pad_mod == SM4_PAD_PKCS7 else '\x00'*p_num
 
-        text = text.decode('utf8', errors='ignore')  # type: ignore
+        text = text.decode('utf-8', errors='ignore')  # type: ignore
         return f'{text}{pad_s}'.encode()
         
 
     # 电子密码本(ECB)
-    def encrypt_ecb(self, plain_text:bytes) -> bytes:
+    def encrypt_ecb(self, plain_text) -> bytes:
         """
         SM4(ECB)加密
-        :param plain_text: 明文
-        :param key: 密钥, 小于等于16字节
+        :param plain_text: str:bytes  明文
+        :returns: bytes 加密后的密文
         """
         self.mode = SM4_ENCRYPT
+        if not plain_text:
+            raise ValueError(u'参数{{plain_text}}不能为空')
+        if isinstance(plain_text, str):
+            plain_text = plain_text.encode('utf-8')
+
         plain_text = self._padding(plain_text)
         if plain_text is None:
             return b''
@@ -222,13 +229,19 @@ class SM4Crypt(object):
 
         return cipherhexlify_list.encode()
 
-    def decrypt_ecb(self, cipher_text:bytes) ->bytes:
+    def decrypt_ecb(self, cipher_text) ->bytes:
         """
         SM4(ECB)解密
         :param cipher_text: 密文
-        :param key: 密钥, 小于等于16字节
         """
         self.mode = SM4_DECRYPT
+
+        if not cipher_text:
+            raise ValueError(u'参数{{cipher_text}}不能为空')
+
+        if isinstance(cipher_text, str):
+            cipher_text = cipher_text.encode('utf-8')
+
         cipherhexlify = hexlify(cipher_text)
         # 密码检验
         #key = _key_iv_check(key_iv=key)
@@ -246,10 +259,14 @@ class SM4Crypt(object):
         """
         SM4(CBC)加密
         :param plain_text: 明文
-        :param key: 密钥, 小于等于16字节
-        :param iv: 初始化向量, 小于等于16字节
         """
         self.mode = SM4_ENCRYPT
+
+        if not plain_text:
+            raise ValueError(u'参数{{plain_text}}不能为空')
+        if isinstance(plain_text, str):
+            plain_text = plain_text.encode('utf-8')
+        
         plain_text = self._padding(plain_text)
         if plain_text is None:
             return b''
@@ -268,16 +285,16 @@ class SM4Crypt(object):
         """
         SM4(CBC)解密
         :param cipher_text: 密文
-        :param key: 密钥 小于等于16字节
-        :param iv: 初始化向量 小于等于16字节
         """
         self.mode = SM4_DECRYPT
+
+        if not cipher_text:
+            raise ValueError(u'参数{{cipher_text}}不能为空')
+
+        if isinstance(cipher_text, str):
+            cipher_text = cipher_text.encode('utf-8')
+
         cipherhexlify = hexlify(cipher_text)
-        
-        # 密钥检测
-        #key = _key_iv_check(key_iv=key)
-        # 初始化向量检测
-        #iv = _key_iv_check(key_iv=iv)
 
         ivs = [int(self.iv, 16)]
         plainhexlify_list = ''

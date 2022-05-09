@@ -57,7 +57,7 @@ class GenSM2KEY(object):
         return self.privateKey(secret), self.publicKey()
 
 
-class CryptSM2(GenSM2KEY):
+class SM2Crypt(GenSM2KEY):
     def __init__(self, ecc_table=ECC_TABLE, mode=1):
         """
         mode: 0-C1C2C3, 1-C1C3C2 (default is 1)

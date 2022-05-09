@@ -20,7 +20,7 @@ SM2椭圆曲线公钥密码算法：我国自主知识产权的商用密码算�
 
 gmssl是包含国密SM2算法的Python实现， 提供了 `encrypt`、 `decrypt`等函数用于加密解密， 用法如下：
 
-#### 1. 初始化`CryptSM2`
+#### 1. 初始化`SM2Crypt`
 
 ```python
 import base64
@@ -29,7 +29,7 @@ from gmssl import sm2, utils  #将原来的func修改成utils
 #16进制的公钥和私钥,限bytes类型
 private_key = b'00B9AB0B828FF68872F21A837FC303668428DEA11DCD1B24429D0C99E24EED83D5'
 public_key = b'B9C9A6E04E9C91F7BA880429273747D7EF5DDEB0BB2FF6317EB00BEF331A83081A6994B8993F3F5D6EADDDB81872266C87C018FB4162F5AF347B483E24620207'
-sm2_crypt = sm2.CryptSM2()
+sm2_crypt = sm2.SM2Crypt()
 
 #1.有公钥和私钥的时候直接设置
 sm2_crypt.set_key_pair(public_key=public_key, private_key=private_key)
@@ -90,10 +90,10 @@ public_key = b'3e206c2c45596028c509f1941259dfb8d3060ae26284f67b8400bfd623e17637'
 
 gmssl是包含国密SM4算法的Python实现， 提供了 `encrypt_ecb`、 `decrypt_ecb`、`encrypt_cbc`、`decrypt_cbc`等函数用于加密解密， 用法如下：
 
-#### 1. 初始化`CryptSM4`
+#### 1. 初始化`SM4Crypt`
 
 ```python
-from gmssl.sm4 import SM4Crypt, SM4_ENCRYPT, SM4_DECRYPT
+from gmssl.sm4 import SM4Crypt
 
 key = b'3l5butlj26hvv313'
 value = b'111' #  bytes类型
